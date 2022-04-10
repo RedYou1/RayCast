@@ -4,15 +4,18 @@
 
 class sphere : public hittable {
 public:
-	sphere(point3 cen, float r, shared_ptr<material> m)
+	sphere(point3 cen, float r, material* m)
 		: center(cen), radius(r), radius2(r* r), mat_ptr(m) {};
+	~sphere() override { delete mat_ptr; }
 
-	virtual bool hit(
-		const ray& r, float t_min, float t_max, hit_record& rec) const override;
+	virtual bool isHit(
+		const ray& r, float& t_min, float& t_max) const override;
+	virtual void hit(
+		const ray& r, float& root, hit_record& rec) const override;
 
 public:
 	point3 center;
 	float radius;
 	float radius2;
-	shared_ptr<material> mat_ptr;
+	material* mat_ptr;
 };

@@ -32,13 +32,12 @@ public:
 
 
 	ray get_ray(float s, float t) const {
-		vec3 rd;
 #if samples
-		rd = lens_radius * random_in_unit_disk();
+		vec3 rd(lens_radius * random_in_unit_disk());
 #else
-		rd = vec3(0, 0, 0);
+		vec3 rd(0, 0, 0);
 #endif
-		vec3 offset = u * rd.X() + v * rd.Y();
+		vec3 offset(u * rd.X() + v * rd.Y());
 
 		return ray(
 			origin + offset,

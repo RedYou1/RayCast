@@ -3,6 +3,7 @@
 #include "camera.h"
 
 #if !profiler
+//use only the main thread when profiling
 const int Renderer::max_thread = std::thread::hardware_concurrency() - 3;
 #endif
 
@@ -40,12 +41,15 @@ Renderer::~Renderer()
 }
 
 void Renderer::renderThread(Renderer* renderer) {
+	Line* l{ nullptr };
+	int y{ 0 };
 	while (true) {
-		int y(renderer->getNextLine());
+		y = (renderer->getNextLine(y, l));
 		if (y >= renderer->m_height)
 			return;
 
-		Line* l{ new Line{image_width} };
+		l = new Line{ image_width };
+
 		for (int i = 0; i < image_width; ++i) {
 			color pixel_color(0, 0, 0);
 #if samples
@@ -66,7 +70,6 @@ void Renderer::renderThread(Renderer* renderer) {
 			l->setPixel(i, pixel_color);
 #endif
 		}
-		renderer->addLine(y, l);
 	}
 }
 
@@ -76,7 +79,11 @@ color Renderer::ray_color(const ray& r, int depth) {
 	if (depth <= 0)
 		return color(0, 0, 0);
 
-	if (m_world->hit(r, 0.001f, infinity, rec)) {
+	float min(0.001f);
+	float max(infinity);
+	if (hittable* hit = m_world->hit(r, min, max, rec)) {
+		hit->hit(r, max, rec);
+
 		ray scattered;
 		color attenuation;
 		if (rec.mat_ptr->scatter(r, rec, attenuation, scattered))
@@ -102,21 +109,23 @@ float clamp(float x, float min, float max) {
 
 void Renderer::exportImg() {
 	while (m_lines.find(m_nextExport) != m_lines.end()) {
-		Line* l{ m_lines[m_nextExport] };
-		for (int i(0); i < m_width * 3; i += 3) {
-			out << static_cast<unsigned>(l->getPixel(i)) << ' '
-				<< static_cast<unsigned>(l->getPixel(i + 1)) << ' '
-				<< static_cast<unsigned>(l->getPixel(i + 2)) << '\n';
+		Line l{ *m_lines[m_nextExport] };
+		int size{ m_width * 3 };
+		for (int i(0); i < size; i += 3) {
+			out << static_cast<unsigned>(l.getPixel(i)) << ' '
+				<< static_cast<unsigned>(l.getPixel(i + 1)) << ' '
+				<< static_cast<unsigned>(l.getPixel(i + 2)) << '\n';
 		}
-		delete l;
 		m_lines.erase(m_nextExport);
 		m_nextExport++;
 	}
 }
 
-int Renderer::getNextLine()
+int Renderer::getNextLine(int pre, Line* line)
 {
 	while (!m_lock.try_lock()) {}
+	if (line != nullptr)
+		addLine(pre, line);
 	int y(m_nextLine);
 	m_nextLine++;
 	std::cout << m_nextLine << "/" << m_height << std::endl;

@@ -7,7 +7,7 @@ using std::shared_ptr;
 struct hit_record {
 	point3 p;
 	vec3 normal;
-	shared_ptr<material> mat_ptr;
+	material* mat_ptr;
 	float t;
 	bool front_face;
 
@@ -19,5 +19,7 @@ struct hit_record {
 
 class hittable {
 public:
-	virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const = 0;
+	virtual ~hittable() {}
+	virtual bool isHit(const ray& r, float& t_min, float& t_max) const = 0;
+	virtual void hit(const ray& r, float& root, hit_record& rec) const = 0;
 };

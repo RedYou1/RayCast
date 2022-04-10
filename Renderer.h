@@ -40,7 +40,7 @@ private:
 public:
 	Renderer(std::string filename, camera* camera, hittable_list* world, int width, int height);
 	~Renderer();
-	int getNextLine();
+	int getNextLine(int pre, Line* line);
 	inline static void renderThread(Renderer* renderer);
 	color ray_color(const ray& r, int depth);
 	void addLine(int y, Line* line);
