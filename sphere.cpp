@@ -1,6 +1,11 @@
 #include "sphere.h"
 
-bool sphere::isHit(const ray& r, float& t_min, float& t_max) const {
+sphere::~sphere()
+{
+	delete mat_ptr;
+}
+
+bool sphere::isHit(const ray& r, float& t_min, float& t_max) {
 	const vec3 oc(r.origin() - center);
 	const vec3 dir(r.direction());
 	const float a(dir.length_squared());
@@ -21,7 +26,7 @@ bool sphere::isHit(const ray& r, float& t_min, float& t_max) const {
 	return true;
 }
 
-void sphere::hit(const ray& r, float& root, hit_record& rec) const {
+void sphere::hit(const ray& r, float& root, hit_record& rec) {
 	rec.t = root;
 	rec.p = r.at(root);
 	vec3 outward_normal((rec.p - center) / radius);

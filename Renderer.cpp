@@ -7,6 +7,12 @@
 const int Renderer::max_thread = std::thread::hardware_concurrency() - 3;
 #endif
 
+float clamp(float x, float min, float max) {
+	if (x < min) return min;
+	if (x > max) return max;
+	return x;
+}
+
 Renderer::Renderer(std::string filename, camera* camera, hittable_list* world, int width, int height)
 	:out(filename), m_lines(), m_nextExport(0),
 	m_nextLine(0), m_width(width), m_height(height),
@@ -34,40 +40,53 @@ Renderer::Renderer(std::string filename, camera* camera, hittable_list* world, i
 Renderer::~Renderer()
 {
 	out.close();
+	for (std::map<int, unsigned char*>::iterator it(m_lines.begin()); it != m_lines.end(); ++it)
+		delete[] it->second;
 	m_lines.clear();
 #if !profiler
 	delete[] m_threads;
 #endif
+	while (!m_unused.empty()) {
+		delete[] m_unused.front();
+		m_unused.pop_front();
+	}
 }
 
 void Renderer::renderThread(Renderer* renderer) {
-	Line* l{ nullptr };
+	unsigned char* l{ nullptr };
 	int y{ 0 };
 	while (true) {
-		y = (renderer->getNextLine(y, l));
-		if (y >= renderer->m_height)
+		renderer->getNextLine(y, l);
+		if (y >= renderer->m_height) {
+			delete[] l;
 			return;
+		}
 
-		l = new Line{ image_width };
-
-		for (int i = 0; i < image_width; ++i) {
-			color pixel_color(0, 0, 0);
+		for (int x{ 0 }; x < image_width; ++x) {
 #if samples
+			color pixel_color(0, 0, 0);
 			for (float sx(-1.0f); sx < 1.0f; sx += samples_diff) {
 				for (float sy(-1.0f); sy < 1.0f; sy += samples_diff) {
 					ray r = renderer->m_camera->get_ray(
-						(i + sx) / (image_width - 1),
+						(x + sx) / (image_width - 1),
 						((image_height - y - 1) + sy) / (image_height - 1));
 					pixel_color += renderer->ray_color(r, max_depth);
 				}
 			}
-			l->setPixel(i, pixel_color);
+			int i{ x * 3 };
+			// Divide the color by the number of samples and gamma-correct for gamma=2.0.
+			l[i] = static_cast<unsigned char>(256 * clamp(sqrt(samples_scale * pixel_color.X()), 0, 0.999f));
+			l[i + 1] = static_cast<unsigned char>(256 * clamp(sqrt(samples_scale * pixel_color.Y()), 0, 0.999f));
+			l[i + 2] = static_cast<unsigned char>(256 * clamp(sqrt(samples_scale * pixel_color.Z()), 0, 0.999f));
 #else
-			float u = ((float)i) / (image_width - 1);
+			float u = ((float)x) / (image_width - 1);
 			float v = ((float)image_height - y - 1) / (image_height - 1);
 			ray r = renderer->m_camera->get_ray(u, v);
-			pixel_color += renderer->ray_color(r, max_depth);
-			l->setPixel(i, pixel_color);
+			color pixel_color(renderer->ray_color(r, max_depth));
+			int i{ x * 3 };
+			l[i] = static_cast<unsigned char>(256 * clamp(sqrt(pixel_color.X()), 0, 0.999f));
+			l[i + 1] = static_cast<unsigned char>(256 * clamp(sqrt(pixel_color.Y()), 0, 0.999f));
+			l[i + 2] = static_cast<unsigned char>(256 * clamp(sqrt(pixel_color.Z()), 0, 0.999f));
 #endif
 		}
 	}
@@ -96,70 +115,50 @@ color Renderer::ray_color(const ray& r, int depth) {
 	return (1.0f - t) * color(1.0f, 1.0f, 1.0f) + t * color(0.5f, 0.7f, 1.0f);
 }
 
-void Renderer::addLine(int y, Line* line)
+void Renderer::addLine(int y, unsigned char*& line)
 {
-	m_lines.insert(std::pair<int, Line*>(y, line));
-}
-
-float clamp(float x, float min, float max) {
-	if (x < min) return min;
-	if (x > max) return max;
-	return x;
+	m_lines.insert(std::pair<int, unsigned char*>(y, line));
 }
 
 void Renderer::exportImg() {
 	while (m_lines.find(m_nextExport) != m_lines.end()) {
-		Line l{ *m_lines[m_nextExport] };
+		unsigned char* l{ m_lines[m_nextExport] };
 		int size{ m_width * 3 };
-		for (int i(0); i < size; i += 3) {
-			out << static_cast<unsigned>(l.getPixel(i)) << ' '
-				<< static_cast<unsigned>(l.getPixel(i + 1)) << ' '
-				<< static_cast<unsigned>(l.getPixel(i + 2)) << '\n';
+		int i(0);
+		while (i < size) {
+			out << static_cast<unsigned>(l[i++]) << ' ';
+			out << static_cast<unsigned>(l[i++]) << ' ';
+			out << static_cast<unsigned>(l[i++]) << '\n';
 		}
+		m_unused.push_front(l);
 		m_lines.erase(m_nextExport);
 		m_nextExport++;
 	}
 }
 
-int Renderer::getNextLine(int pre, Line* line)
+unsigned char* Renderer::getLine()
 {
-	while (!m_lock.try_lock()) {}
-	if (line != nullptr)
+	unsigned char* l{ nullptr };
+	if (!m_unused.empty()) {
+		l = m_unused.front();
+		m_unused.pop_front();
+	}
+	else {
+		l = new unsigned char[m_width * 3];
+	}
+	return l;
+}
+
+void Renderer::getNextLine(int& pre, unsigned char*& line)
+{
+	std::lock_guard<std::mutex> lg(m_lock);
+
+	if (line != nullptr) {
+		std::cout << pre << "/" << m_height << std::endl;
 		addLine(pre, line);
-	int y(m_nextLine);
+	}
+	line = getLine();
+	pre = m_nextLine;
 	m_nextLine++;
-	std::cout << m_nextLine << "/" << m_height << std::endl;
 	exportImg();
-	m_lock.unlock();
-	return y;
-}
-
-Line::Line(int width)
-	:m_pixels(new unsigned char[width * 3])
-{
-}
-
-Line::~Line()
-{
-	delete[] m_pixels;
-}
-
-void Line::setPixel(int x, vec3 color)
-{
-#if samples
-	// Divide the color by the number of samples and gamma-correct for gamma=2.0.
-	float scale = 1.0f / samples_per_pixel;
-	m_pixels[x * 3] = static_cast<unsigned>(256 * clamp(sqrt(scale * color.X()), 0, 0.999f));
-	m_pixels[x * 3 + 1] = static_cast<unsigned>(256 * clamp(sqrt(scale * color.Y()), 0, 0.999f));
-	m_pixels[x * 3 + 2] = static_cast<unsigned>(256 * clamp(sqrt(scale * color.Z()), 0, 0.999f));
-#else
-	m_pixels[x * 3] = static_cast<unsigned>(256 * clamp(sqrt(color.X()), 0, 0.999f));
-	m_pixels[x * 3 + 1] = static_cast<unsigned>(256 * clamp(sqrt(color.Y()), 0, 0.999f));
-	m_pixels[x * 3 + 2] = static_cast<unsigned>(256 * clamp(sqrt(color.Z()), 0, 0.999f));
-#endif
-}
-
-unsigned char Line::getPixel(int x)
-{
-	return m_pixels[x];
 }

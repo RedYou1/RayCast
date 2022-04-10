@@ -19,7 +19,7 @@ struct hit_record {
 
 class hittable {
 public:
-	virtual ~hittable() {}
-	virtual bool isHit(const ray& r, float& t_min, float& t_max) const = 0;
-	virtual void hit(const ray& r, float& root, hit_record& rec) const = 0;
+	virtual ~hittable() = default;
+	virtual bool isHit(const ray& r, float& t_min, float& t_max) = 0;
+	virtual void hit(const ray& r, float& root, hit_record& rec) = 0;
 };

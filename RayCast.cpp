@@ -14,32 +14,37 @@
 
 hittable_list* random_scene();
 
-static hittable_list world = *random_scene();
-
-static point3 lookfrom(13, 2, 3);
-static point3 lookat(0, 0, 0);
-static vec3 vup(0, 1, 0);
-static float dist_to_focus = 10.0f;
-static float aperture = 0.1f;
-
-static camera cam(lookfrom, lookat, vup, 20, aspect_ratio, aperture, dist_to_focus);
-
 int main()
 {
-	srand((unsigned int)time(NULL));
-	std::cout << "Begin" << std::endl;
+	{
+		srand((unsigned int)time(NULL));
+
+		hittable_list* world{ random_scene() };
+
+		point3 lookfrom(13, 2, 3);
+		point3 lookat(0, 0, 0);
+		vec3 vup(0, 1, 0);
+		float dist_to_focus = 10.0f;
+		float aperture = 0.1f;
+
+		camera cam(lookfrom, lookat, vup, 20, aspect_ratio, aperture, dist_to_focus);
+
+		std::cout << "Begin" << std::endl;
 
 #if samples
-	Renderer renderer{ "test.ppm",&cam,&world,image_width,image_height };
+		Renderer renderer{ "test.ppm",&cam,world,image_width,image_height };
 #else
-	Renderer renderer{ "test.ppm",&cam,&world,image_width,image_height };
+		Renderer renderer{ "test.ppm",&cam,world,image_width,image_height };
 #endif
 
-	std::cout << "output image..." << std::endl;
+		std::cout << "output image..." << std::endl;
 
-	renderer.exportImg();
+		renderer.exportImg();
 
-	std::cout << "End" << std::endl;
+		delete world;
+
+		std::cout << "End" << std::endl;
+	}
 }
 
 hittable_list* random_scene() {

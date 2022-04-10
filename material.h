@@ -8,7 +8,7 @@ class material {
 public:
 	virtual bool scatter(
 		const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
-	) const = 0;
+	) = 0;
 };
 
 class lambertian : public material {
@@ -17,7 +17,7 @@ public:
 
 	virtual bool scatter(
 		const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
-	) const override;
+	) override;
 
 public:
 	color albedo;
@@ -29,7 +29,7 @@ public:
 
 	virtual bool scatter(
 		const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
-	) const override;
+	) override;
 
 public:
 	color albedo;

@@ -7,12 +7,13 @@ static const double aspect_ratio = 3.0 / 2.0;//3.0/2.0
 #if profiler
 static const int image_width = 50;
 #else
-static const int image_width = 400;//1200
+static const int image_width = 1200;//1200
 #endif
 static const int image_height = static_cast<int>(image_width / aspect_ratio);
 #if samples
-static const int samples_per_pixel = 30;//500
+static const int samples_per_pixel = 75;//500
 static const float samples_diff = 2.0f / (float)sqrt(samples_per_pixel);
+static const float samples_scale = 1.0f / samples_per_pixel;
 #endif
 static const int max_depth = 50;//50
 

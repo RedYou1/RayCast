@@ -8,16 +8,7 @@
 #include "camera.h"
 #include "hittable_list.h"
 #include <mutex>
-
-class Line {
-private:
-	unsigned char* m_pixels;
-public:
-	Line(int width);
-	~Line();
-	void setPixel(int x, vec3 color);
-	unsigned char getPixel(int x);
-};
+#include <forward_list>
 
 class Renderer {
 private:
@@ -26,7 +17,8 @@ private:
 #endif
 
 	std::ofstream out;
-	std::map<int, Line*> m_lines;
+	std::map<int, unsigned char*> m_lines;
+	std::forward_list<unsigned char*> m_unused;
 	std::thread* m_threads;
 
 	camera* m_camera;
@@ -40,9 +32,10 @@ private:
 public:
 	Renderer(std::string filename, camera* camera, hittable_list* world, int width, int height);
 	~Renderer();
-	int getNextLine(int pre, Line* line);
+	void getNextLine(int& pre, unsigned char*& line);
+	unsigned char* getLine();
 	inline static void renderThread(Renderer* renderer);
 	color ray_color(const ray& r, int depth);
-	void addLine(int y, Line* line);
+	void addLine(int y, unsigned char*& line);
 	void exportImg();
 };

@@ -5,7 +5,7 @@
 
 bool lambertian::scatter(
 	const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
-) const {
+) {
 #if samples
 	vec3 scatter_direction(rec.normal + random_unit_vector());
 #else
@@ -18,7 +18,7 @@ bool lambertian::scatter(
 
 bool metal::scatter(
 	const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
-) const {
+) {
 	vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
 #if samples
 	scattered = ray(rec.p, reflected + fuzz * random_in_unit_sphere());
